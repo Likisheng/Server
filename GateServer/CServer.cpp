@@ -1,0 +1,60 @@
+#include "CServer.h"
+#include "ConfigMgr.h"
+#include "HttpConnection.h"
+#include <cstdlib>
+#include <iostream>
+CServer::CServer(net::io_context &ioc, unsigned short &port)
+    : _ioc(ioc), _acceptor(ioc, tcp::endpoint(tcp::v4(), port)), _socket(ioc) {}
+
+void CServer::start() {
+
+  auto self = shared_from_this();
+
+  _acceptor.async_accept(_socket, [self](beast::error_code ec) {
+    try {
+      // 出错放弃socket连接，监听其他连接
+      if (ec) {
+        self->start();
+        return;
+      }
+
+      // 没有出错，使用连接管理类去处理事件,管理连接
+      std::make_shared<HttpConnection>(std::move(self->_socket))->start();
+
+      // 继续监听
+      self->start();
+    } catch (std::exception &e) {
+    }
+  });
+}
+
+int main() {
+  ConfigMgr config_mgr;
+  std::string gate_port_str = config_mgr["GateServer"]["port"]; // 设置默认端口
+  unsigned short port = atoi(gate_port_str.c_str());
+ 
+  try {
+    
+    net::io_context ioc{1};
+    net::signal_set signals(ioc, SIGINT, SIGTERM);
+
+    signals.async_wait(
+        [&ioc](const boost::system::error_code &error, int signal_number) {
+          if (error) {
+
+            return;
+          }
+
+          ioc.stop();
+        });
+
+    std::make_shared<CServer>(ioc, port)->start();
+    std::cout << "GateServer listen on port:" << port << std::endl;
+    // 开启底层事件轮询
+    ioc.run();
+
+  } catch (std::exception e) {
+    std::cerr << "Error:" << e.what() << std::endl;
+  }
+  return 0;
+}
