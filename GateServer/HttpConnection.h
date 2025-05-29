@@ -13,9 +13,14 @@ class LogicSystem;
 class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
 public:
   friend class LogicSystem;
-  HttpConnection(tcp::socket socket);
+  HttpConnection(boost::asio::io_context &ioc);
   void start();
-
+  tcp::socket& GetSocket(boost::asio::io_context &ioc) {
+    if (!_socket.is_open()) {
+      _socket = tcp::socket(ioc);
+    }
+    return _socket;
+  }
 private:
   void checkDeadline();
   void writeResponse();

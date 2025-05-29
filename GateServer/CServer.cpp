@@ -3,14 +3,19 @@
 #include "HttpConnection.h"
 #include <cstdlib>
 #include <iostream>
+#include <memory>
+#include "AsioIOContextPool.h"
+
 CServer::CServer(net::io_context &ioc, unsigned short &port)
-    : _ioc(ioc), _acceptor(ioc, tcp::endpoint(tcp::v4(), port)), _socket(ioc) {}
+    : _ioc(ioc), _acceptor(ioc, tcp::endpoint(tcp::v4(), port)) {}
 
 void CServer::start() {
 
   auto self = shared_from_this();
-
-  _acceptor.async_accept(_socket, [self](beast::error_code ec) {
+  auto &ioc = AsioIOContextPool::GetInstance()->GetIOContext();
+  std::shared_ptr<HttpConnection> connection =
+      std::make_shared<HttpConnection>(ioc);
+  _acceptor.async_accept(connection->GetSocket(ioc), [self,connection](beast::error_code ec) {
     try {
       // 出错放弃socket连接，监听其他连接
       if (ec) {
@@ -19,7 +24,7 @@ void CServer::start() {
       }
 
       // 没有出错，使用连接管理类去处理事件,管理连接
-      std::make_shared<HttpConnection>(std::move(self->_socket))->start();
+      connection->start();
 
       // 继续监听
       self->start();
@@ -29,7 +34,8 @@ void CServer::start() {
 }
 
 int main() {
-  ConfigMgr config_mgr;
+
+  ConfigMgr& config_mgr=ConfigMgr::Inst();
   std::string gate_port_str = config_mgr["GateServer"]["port"]; // 设置默认端口
   unsigned short port = atoi(gate_port_str.c_str());
  

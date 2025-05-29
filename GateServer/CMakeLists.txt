@@ -36,7 +36,8 @@ set(SOURCES
     ConfigMgr.cpp
     VerifyGrpcClient.cpp
     message.grpc.pb.cc
-    message.pb.cc)
+    message.pb.cc
+    AsioIOContextPool.cpp)
 
 
 # 添加可执行文件
