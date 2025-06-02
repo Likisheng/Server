@@ -11,6 +11,10 @@ if(POLICY CMP0167)
     cmake_policy(SET CMP0167 OLD)
 endif()
 
+# 查找hiredis库 - 添加在这里
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(HIREDIS REQUIRED hiredis)
+
 # 查找Boost库
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 
@@ -18,17 +22,16 @@ find_package(Boost REQUIRED COMPONENTS filesystem system)
 find_package(gRPC REQUIRED COMPONENTS grpc++ grpc)
 
 # 查找JsonCpp库
-find_package(PkgConfig REQUIRED)
 pkg_check_modules(JSONCPP jsoncpp)
-if(JSONCPP_FOUND)
-    include_directories(${JSONCPP_INCLUDE_DIRS})
-    link_directories(${JSONCPP_LIBRARY_DIRS})
-else()
-    message(FATAL_ERROR "JsonCpp not found")
-endif()
 
 # 添加源文件和头文件路径
 include_directories(${CMAKE_SOURCE_DIR})
+include_directories(
+    ${JSONCPP_INCLUDE_DIRS}
+    ${HIREDIS_INCLUDE_DIRS}  # 添加hiredis头文件路径
+)
+
+
 set(SOURCES 
     CServer.cpp
     HttpConnection.cpp
@@ -43,7 +46,15 @@ set(SOURCES
 # 添加可执行文件
 add_executable(GateServer ${SOURCES})
 
-# 链接库
-target_link_libraries(GateServer ${Boost_LIBRARIES} ${JSONCPP_LIBRARIES} ${Protobuf_LIBRARIES} gRPC::grpc++ gRPC::grpc Boost::filesystem Boost::system)
+# 链接库 - 添加hiredis
+target_link_libraries(GateServer 
+    ${Boost_LIBRARIES} 
+    ${JSONCPP_LIBRARIES} 
+    ${HIREDIS_LIBRARIES}  # 添加hiredis链接
+    ${Protobuf_LIBRARIES} 
+    gRPC::grpc++ 
+    gRPC::grpc 
+    Boost::filesystem 
+    Boost::system)
 
 
