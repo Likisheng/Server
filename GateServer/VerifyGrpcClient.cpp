@@ -59,8 +59,8 @@ void RPConlPool::returnStub(std::unique_ptr<VerifyService::Stub> stub) {
 
 VerifyGrpcClient::VerifyGrpcClient() {
   auto &config_mgr = ConfigMgr::Inst();
-  std::string host = config_mgr["VerifyService"]["host"]; // Default host
-  std::string port = config_mgr["VerifyService"]["port"]; // Default port
+  std::string host = config_mgr["VerifyServer"]["host"];  // Default host
+  std::string port = config_mgr["VerifyServer"]["port"];  // Default port
   _pool.reset(new RPConlPool(5, host, port));
 
 }

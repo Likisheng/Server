@@ -4,7 +4,6 @@
 #include <iostream>
 #include <memory>
 #include "AsioIOContextPool.h"
-#include "hiredis.h"
 #include "RedisMgr.h"
 CServer::CServer(net::io_context &ioc, unsigned short &port)
     : _ioc(ioc), _acceptor(ioc, tcp::endpoint(tcp::v4(), port)) {}
@@ -58,7 +57,7 @@ void TestRedisMgr() {
 
 int main() {
 
-  TestRedisMgr();
+
   ConfigMgr& config_mgr=ConfigMgr::Inst();
   std::string gate_port_str = config_mgr["GateServer"]["port"]; // 设置默认端口
   unsigned short port = atoi(gate_port_str.c_str());
