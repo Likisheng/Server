@@ -1,5 +1,6 @@
 #include "LogicSystem.h"
 #include "HttpConnection.h"
+#include "MySqlMgr.h"
 #include "VerifyGrpcClient.h"
 #include "RedisMgr.h"
 
@@ -83,10 +84,25 @@ LogicSystem::LogicSystem() {
       beast::ostream(connection->_response.body()) << jsonstr;
       return true;
     }
+
+    auto email = src_root["email"].asString();
+    auto name = src_root["user"].asString();
+    auto pwd = src_root["passwd"].asString();
+    auto confirm = src_root["confirm"].asString();
+    auto icon = src_root["icon"].asString();
+
+    if (pwd != confirm) {
+      std::cout << "password err " << std::endl;
+      root["error"] = ErrorCodes::PasswdErr;
+      std::string jsonstr = root.toStyledString();
+      beast::ostream(connection->_response.body()) << jsonstr;
+      return true;
+    }
+
     // 先查找redis中email对应的验证码是否合理
     std::string varify_code;
-    bool b_get_varify =
-        RedisMgr::GetInstance()->Get(CODEPROFIX+src_root["email"].asString(), varify_code);
+    bool b_get_varify = RedisMgr::GetInstance()->Get(
+        CODEPRFIX + src_root["email"].asString(), varify_code);
     if (!b_get_varify) {
       std::cout << " get varify code expired" << std::endl;
       root["error"] = ErrorCodes::VarifyExpired;
@@ -94,6 +110,7 @@ LogicSystem::LogicSystem() {
       beast::ostream(connection->_response.body()) << jsonstr;
       return true;
     }
+
     if (varify_code != src_root["varifycode"].asString()) {
       std::cout << " varify code error" << std::endl;
       root["error"] = ErrorCodes::VarifyCodeErr;
@@ -103,11 +120,21 @@ LogicSystem::LogicSystem() {
     }
 
     // 查找数据库判断用户是否存在
+    int uid = MySqlMgr::GetInstance()->RegUser(name, email, pwd, icon);
+    if (uid == 0 || uid == -1) {
+      std::cout << " user or email exist" << std::endl;
+      root["error"] = ErrorCodes::UserExist;
+      std::string jsonstr = root.toStyledString();
+      beast::ostream(connection->_response.body()) << jsonstr;
+      return true;
+    }
     root["error"] = 0;
-    root["email"] = src_root["email"];
-    root["user"] = src_root["user"].asString();
-    root["passwd"] = src_root["passwd"].asString();
-    root["confirm"] = src_root["confirm"].asString();
+    root["uid"] = uid;
+    root["email"] = email;
+    root["user"] = name;
+    root["passwd"] = pwd;
+    root["confirm"] = confirm;
+    root["icon"] = icon;
     root["varifycode"] = src_root["varifycode"].asString();
     std::string jsonstr = root.toStyledString();
     beast::ostream(connection->_response.body()) << jsonstr;

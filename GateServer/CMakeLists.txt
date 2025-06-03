@@ -1,37 +1,71 @@
 cmake_minimum_required(VERSION 3.20)
 project(GateServer CXX)
 
-# 指定C++标准
+# 设置 C++17 标准
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
-# 设置策略，避免 CMP0167 警告（兼容旧的 FindBoost）
+# 避免 CMP0167 警告（兼容旧 Boost）
 if(POLICY CMP0167)
     cmake_policy(SET CMP0167 OLD)
 endif()
 
-# 查找hiredis库 - 添加在这里
+# 启用调试输出
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# ================= 查找依赖 =================
+
+# ---------- hiredis ----------
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(HIREDIS REQUIRED hiredis)
 
-# 查找Boost库
+# ---------- Boost ----------
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 
-# 查找 gRPC 并指定完整组件
+# ---------- gRPC ----------
 find_package(gRPC REQUIRED COMPONENTS grpc++ grpc)
+find_package(Protobuf REQUIRED)
 
-# 查找JsonCpp库
-pkg_check_modules(JSONCPP jsoncpp)
+# ---------- JsonCpp ----------
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
-# 添加源文件和头文件路径
-include_directories(${CMAKE_SOURCE_DIR})
+# ---------- MySQL++ ----------
+pkg_check_modules(MYSQLPP mysql++ QUIET)
+
+if(NOT MYSQLPP_FOUND)
+    set(MYSQLPP_INCLUDE_DIR /usr/include/mysql++)
+    set(MYSQLPP_LIBRARY /usr/lib/libmysqlpp.so)
+
+    if(EXISTS ${MYSQLPP_INCLUDE_DIR} AND EXISTS ${MYSQLPP_LIBRARY})
+        message(STATUS "MySQL++ found manually")
+        set(MYSQLPP_LIBRARIES ${MYSQLPP_LIBRARY})
+        set(MYSQLPP_FOUND TRUE)
+    else()
+        message(FATAL_ERROR "MySQL++ not found")
+    endif()
+endif()
+
+# 自动获取 mariadb 配置
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(MARIADB REQUIRED libmariadb)
+
+
+
+
+
+# ================= 包含路径 =================
 include_directories(
+    ${CMAKE_SOURCE_DIR}
     ${JSONCPP_INCLUDE_DIRS}
-    ${HIREDIS_INCLUDE_DIRS}  # 添加hiredis头文件路径
+    ${HIREDIS_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
+    ${MYSQLPP_INCLUDE_DIR}
+    ${MARIADB_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 
+# ================= 源文件 =================
 set(SOURCES 
     CServer.cpp
     HttpConnection.cpp
@@ -41,21 +75,27 @@ set(SOURCES
     message.grpc.pb.cc
     message.pb.cc
     AsioIOContextPool.cpp
-    RedisMgr.cpp)
+    RedisMgr.cpp
+    MySqlMgr.cpp
+    MySqlDao.cpp
+    MySqlPool.cpp
+)
 
-
-# 添加可执行文件
+# ================= 可执行目标 =================
 add_executable(GateServer ${SOURCES})
 
-# 链接库 - 添加hiredis
+# ================= 链接库 =================
 target_link_libraries(GateServer 
     ${Boost_LIBRARIES} 
     ${JSONCPP_LIBRARIES} 
-    ${HIREDIS_LIBRARIES}  # 添加hiredis链接
+    ${HIREDIS_LIBRARIES}
     ${Protobuf_LIBRARIES} 
     gRPC::grpc++ 
     gRPC::grpc 
     Boost::filesystem 
-    Boost::system)
+    Boost::system
+    ${MYSQLPP_LIBRARIES}
+    ${MARIADB_LIBRARIES}
+)
 
 
