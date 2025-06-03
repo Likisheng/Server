@@ -5,7 +5,7 @@
 #include <json/reader.h>
 #include <json/value.h>
 #include <map>
-
+#define CODEPROFIX "code_"
 class HttpConnection;
 typedef std::function<void(std::shared_ptr<HttpConnection>)> httpHandler;
 class LogicSystem : public Singleton<LogicSystem> {
@@ -28,4 +28,15 @@ private:
   std::map<std::string, httpHandler> _getHandles;
 };
 
-enum ERRORCODE { SUCCESS = 0, ERROR_JSON = 1001, RPC_FAILED = 1002 };
+enum ErrorCodes {
+  Success = 0,
+  Error_Json = 1001,
+  RPCFailed = 1002,
+  VarifyExpired = 1003,
+  VarifyCodeErr = 1004,
+  UserExist = 1005,
+  UserPasswdErr = 1006,
+  EmailNotMatch = 1007,
+  PasswdUpFailed = 1008,
+  PasswdInvalid = 1009
+};
